@@ -54,7 +54,7 @@ namespace CarCollection.Controllers
         /// <summary>
         /// Api controller that updates a single vehicle.
         /// </summary>
-        /// <remarks>[HttpPut("{id}")] Endpoint: api/Vehicle/5</remarks>
+        /// <remarks>[HttpPut("{id}")] Endpoint: api/Vehicles/5</remarks>
         /// <param name="id">Id property for Vehicle Id.</param>
         /// <param name="VehicleViewModel">User input of a single Vehicle object.</param>
         /// <returns>The created <see cref="VehicleViewModel"/> for the response.</returns>
