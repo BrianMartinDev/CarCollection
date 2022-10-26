@@ -1,6 +1,6 @@
 ﻿using AutoMapper;
 using CarCollection.Data;
-using CarCollection.ViewModels;
+using CarCollection.ViewModels.Vehicle;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,14 +23,34 @@ namespace CarCollection.Controllers
         /// Api controller that returns an IEnumerable list of vehicles.
         /// </summary>
         /// <remarks>[GET] Endpoint: api/Vehicles</remarks>
-        /// <returns>A IEnumerable list of <see cref="Vehicle"/> objects.</returns>
+        /// <returns>A IEnumerable list of <see cref="VehicleViewModel"/> objects.</returns>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Vehicle>>> GetVehicles()
+        public async Task<ActionResult<IEnumerable<VehicleViewModel>>> GetVehicles()
             {
             var Vehicles = await _context.Vehicles.ToListAsync();
             var vehicleViewModel = _mapper.Map<IEnumerable<VehicleViewModel>>(Vehicles);
             return Ok(vehicleViewModel);
             }
+
+
+        /// <summary>
+        /// Api controller that a single vehicle.
+        /// </summary>
+        /// <remarks>[HttpGet("{id}")] Endpoint: api/Vehicles/5</remarks>
+        /// <param name="id">Id property for Vehicle Id.</param>
+        /// <returns>A single Vehicles object.</returns>
+        [HttpGet("GetVehicleWithComments/{vehicleId}")]
+        public async Task<ActionResult<VehicleViewModel>> GetVehicleWithComments(int vehicleId)
+            {
+            var vehicle = await _context.Vehicles.Include(o => o.Comments)
+                .FirstOrDefaultAsync(o => o.Id == vehicleId);
+
+            if (vehicle == null) return NotFound();
+            if (vehicleId != vehicle.Id) return BadRequest();
+            var vehicleViewModel = _mapper.Map<VehicleViewModel>(vehicle);
+            return Ok(vehicleViewModel);
+            }
+
 
         /// <summary>
         /// Api controller that a single vehicle.
@@ -41,13 +61,11 @@ namespace CarCollection.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<VehicleViewModel>> GetVehicle(int id)
             {
-            var vehicle = await _context.Vehicles.FindAsync(id);
+            var vehicle = await _context.Vehicles
+                .FirstOrDefaultAsync(o => o.Id == id);
 
-            if (vehicle == null)
-                {
-                return NotFound();
-                }
-            var vehicleViewModel = _mapper.Map<Vehicle>(vehicle);
+            if (vehicle == null) return NotFound();
+            var vehicleViewModel = _mapper.Map<VehicleViewModel>(vehicle);
             return Ok(vehicleViewModel);
             }
 
@@ -56,27 +74,18 @@ namespace CarCollection.Controllers
         /// </summary>
         /// <remarks>[HttpPut("{id}")] Endpoint: api/Vehicles/5</remarks>
         /// <param name="id">Id property for Vehicle Id.</param>
-        /// <param name="VehicleViewModel">User input of a single Vehicle object.</param>
-        /// <returns>The created <see cref="VehicleViewModel"/> for the response.</returns>
+        /// <param name="UpdateVehicleViewModel">User input of a single Vehicle object.</param>
+        /// <returns>The created <see cref="UpdateVehicleViewModel"/> for the response.</returns>
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutVehicle(int id, VehicleViewModel vehicleViewModel)
+        public async Task<IActionResult> PutVehicle(int id, UpdateVehicleViewModel updateVehicleViewModel)
             {
 
-            var vehicle = new Vehicle
-                {
-                Id = id,
-                Name = vehicleViewModel.Name,
-                Year = vehicleViewModel.Year,
-                Address = vehicleViewModel.Address,
-                Description = vehicleViewModel.Description,
-                Engine = vehicleViewModel.Engine,
-                };
+            if (id != updateVehicleViewModel.Id) return BadRequest();
+            var vehicle = await _context.Vehicles.Include(o => o.Comments).FirstOrDefaultAsync(o => o.Id == id);
 
-            if (id != vehicle.Id)
-                {
-                return BadRequest();
-                }
+            if (vehicle == null) return NotFound();
 
+            _mapper.Map(updateVehicleViewModel, vehicle);
             _context.Entry(vehicle).State = EntityState.Modified;
 
             try
@@ -94,35 +103,26 @@ namespace CarCollection.Controllers
                     throw;
                     }
                 }
-
-            return Ok(vehicle);
+            var vehicleVm = _mapper.Map<GetVehicleViewModel>(vehicle);
+            return Ok(vehicleVm);
             }
 
         /// <summary>
         /// Api controller that creates a single vehicle object.
         /// </summary>
         /// <remarks>[HttpPost] Endpoint: api/Vehicles</remarks>
-        /// <param name="VehicleViewModel">User input of a single Vehicle object.</param>
-        /// <returns>The created <see cref="VehicleViewModel"/> for the response.</returns>
+        /// <param name="CreateVehicleViewModel">User input of a single Vehicle object.</param>
+        /// <returns>The created <see cref="CreateVehicleViewModel"/> for the response.</returns>
         [HttpPost]
-        public async Task<ActionResult<Vehicle>> PostVehicle(VehicleViewModel vehicleViewModel)
+        public async Task<ActionResult<CreateVehicleViewModel>> PostVehicle(CreateVehicleViewModel createVehicleViewModel)
             {
 
-            //var vehicle = new Vehicle
-            //    {
-            //    Name = vehicleViewModel.Name,
-            //    Year = vehicleViewModel.Year,
-            //    Address = vehicleViewModel.Address,
-            //    Description = vehicleViewModel.Description,
-            //    Engine = vehicleViewModel.Engine,
-            //    };
-
-            var vehicle = _mapper.Map<Vehicle>(vehicleViewModel);
+            var vehicle = _mapper.Map<Vehicle>(createVehicleViewModel);
 
             _context.Vehicles.Add(vehicle);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetVehicle", new { id = vehicle.Id }, vehicle);
+            return CreatedAtAction("GetVehicle", new { id = vehicle.Id }, createVehicleViewModel);
             }
 
         /// <summary>
@@ -135,10 +135,7 @@ namespace CarCollection.Controllers
         public async Task<IActionResult> DeleteVehicle(int id)
             {
             var vehicle = await _context.Vehicles.FindAsync(id);
-            if (vehicle == null)
-                {
-                return NotFound();
-                }
+            if (vehicle == null) return NotFound();
 
             _context.Vehicles.Remove(vehicle);
             await _context.SaveChangesAsync();

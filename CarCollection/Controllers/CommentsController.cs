@@ -1,6 +1,6 @@
 ﻿using AutoMapper;
 using BugTracker.Data;
-using CarCollection.ViewModels;
+using CarCollection.ViewModels.Comment;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +26,7 @@ namespace CarCollection.Controllers
         /// <remarks>[GET] Endpoint: api/Comments</remarks>
         /// <returns>A IEnumerable list of comment objects.</returns>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Comment>>> GetComment()
+        public async Task<ActionResult<IEnumerable<CommentViewModel>>> GetComment()
             {
             var comments = await _context.Comment.ToListAsync();
             var commentViewModel = _mapper.Map<IEnumerable<CommentViewModel>>(comments);
@@ -58,21 +58,23 @@ namespace CarCollection.Controllers
         /// </summary>
         /// <remarks>[HttpPut("{id}")] Endpoint: api/Comment/5</remarks>
         /// <param name="id">Id property for Comment Id.</param>
-        /// <param name="CommentViewModel">User input of a single Comment object.</param>
-        /// <returns>The created <see cref="CommentViewModel"/> for the response.</returns>
+        /// <param name="UpdateCommentViewModel">User input of a single Comment object.</param>
+        /// <returns>The created <see cref="UpdateCommentViewModel"/> for the response.</returns>
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutComment(int id, CommentViewModel commentViewModel)
+        public async Task<IActionResult> PutComment(int id, UpdateCommentViewModel updateCommentViewModel)
             {
-            var comment = new Comment
-                {
-                Name = commentViewModel.Name,
-                Description = commentViewModel.Description,
-                };
 
-            if (id != comment.Id)
-                {
-                return BadRequest();
-                }
+            if (id != updateCommentViewModel.Id) return BadRequest();
+
+            var comment = await _context.Comment.FindAsync(id);
+
+            if (comment == null) return NotFound();
+
+            if (id != comment.Id) return BadRequest();
+
+            _mapper.Map(updateCommentViewModel, comment);
+
+            if (id != comment.Id) return BadRequest();
 
             _context.Entry(comment).State = EntityState.Modified;
 
@@ -91,8 +93,8 @@ namespace CarCollection.Controllers
                     throw;
                     }
                 }
-
-            return Ok(comment);
+            var commentVm = _mapper.Map<GetCommentViewModel>(comment);
+            return Ok(commentVm);
             }
 
         /// <summary>
@@ -100,24 +102,21 @@ namespace CarCollection.Controllers
         /// </summary>
         /// <remarks>[HttpPost] Endpoint: api/Comments</remarks>
         /// <param name="vehiclePostId">Id property for Vehicle Id</param>
-        /// <param name="CommentViewModel">User input of a single Comment object.</param>
-        /// <returns>The created <see cref="CommentViewModel"/> for the response.</returns>
+        /// <param name="CreateCommentViewModel">User input of a single Comment object.</param>
+        /// <returns>The created <see cref="CreateCommentViewModel"/> for the response.</returns>
         [HttpPost("{vehiclePostId}")]
-        public async Task<ActionResult<Comment>> PostComment(int vehiclePostId, CommentViewModel commentViewModel)
+        public async Task<ActionResult<CreateCommentViewModel>> PostComment(int vehiclePostId, CreateCommentViewModel createCommentViewModel)
             {
-            //var comment = new Comment
-            //    {
-            //    Name = commentViewModel.Name,
-            //    Description = commentViewModel.Description,
-            //    };
 
-            var comment = _mapper.Map<Comment>(commentViewModel);
-            comment.VehicleId = vehiclePostId;
+            if (vehiclePostId != createCommentViewModel.VehicleId) return BadRequest();
 
+            var comment = _mapper.Map<Comment>(createCommentViewModel);
+
+            _mapper.Map(createCommentViewModel, comment);
             _context.Comment.Add(comment);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetComment", new { id = comment.Id }, comment);
+            return CreatedAtAction("GetComment", new { id = comment.Id }, createCommentViewModel);
             }
 
         /// <summary>
@@ -130,10 +129,7 @@ namespace CarCollection.Controllers
         public async Task<IActionResult> DeleteComment(int id)
             {
             var comment = await _context.Comment.FindAsync(id);
-            if (comment == null)
-                {
-                return NotFound();
-                }
+            if (comment == null) return NotFound();
 
             _context.Comment.Remove(comment);
             await _context.SaveChangesAsync();
