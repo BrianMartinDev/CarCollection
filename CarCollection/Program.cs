@@ -1,3 +1,5 @@
+using CarCollection.Repository;
+using CarCollection.Repository.IRepository;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -19,6 +21,9 @@ builder.Services.AddCors(options =>
 });
 builder.Host.UseSerilog((builderContext, x) => x.WriteTo.Console().ReadFrom.Configuration(builderContext.Configuration));
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
+builder.Services.AddScoped<ICommentRepository, CommentRepository>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
