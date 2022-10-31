@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using CarCollection.Data;
+using CarCollection.Repository.IRepository;
 using CarCollection.ViewModels.Vehicle;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,12 +11,12 @@ namespace CarCollection.Controllers
     [ApiController]
     public class VehiclesController : ControllerBase
         {
-        private readonly ApplicationDbContext _context;
+        private readonly IVehicleRepository _vehicleRepository;
         private readonly IMapper _mapper;
 
-        public VehiclesController(ApplicationDbContext context, IMapper mapper)
+        public VehiclesController(IVehicleRepository vehicleRepository, IMapper mapper)
             {
-            _context = context;
+            _vehicleRepository = vehicleRepository;
             _mapper = mapper;
             }
 
@@ -27,26 +28,27 @@ namespace CarCollection.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<VehicleViewModel>>> GetVehicles()
             {
-            var Vehicles = await _context.Vehicles.ToListAsync();
+            var Vehicles = await _vehicleRepository.GetAllAsync();
             var vehicleViewModel = _mapper.Map<IEnumerable<VehicleViewModel>>(Vehicles);
             return Ok(vehicleViewModel);
             }
 
 
         /// <summary>
-        /// Api controller that a single vehicle.
+        /// Api controller that a single vehicle with comments.
         /// </summary>
-        /// <remarks>[HttpGet("{id}")] Endpoint: api/Vehicles/5</remarks>
+        /// <remarks>HttpGet("GetVehicleWithComments/{vehicleId}")] Endpoint: api/Vehicles/GetVehicleWithComments/{vehicleId}</remarks>
         /// <param name="id">Id property for Vehicle Id.</param>
-        /// <returns>A single Vehicles object.</returns>
+        /// <returns>A single Vehicles object with comments.</returns>
         [HttpGet("GetVehicleWithComments/{vehicleId}")]
-        public async Task<ActionResult<VehicleViewModel>> GetVehicleWithComments(int vehicleId)
+        public async Task<ActionResult<VehicleViewModel>> GetVehicleWithComments(int? vehicleId)
             {
-            var vehicle = await _context.Vehicles.Include(o => o.Comments)
-                .FirstOrDefaultAsync(o => o.Id == vehicleId);
+            if (vehicleId == null) return BadRequest();
+
+            var vehicle = await _vehicleRepository.GetVehicleWithComments(vehicleId);
 
             if (vehicle == null) return NotFound();
-            if (vehicleId != vehicle.Id) return BadRequest();
+
             var vehicleViewModel = _mapper.Map<VehicleViewModel>(vehicle);
             return Ok(vehicleViewModel);
             }
@@ -61,8 +63,9 @@ namespace CarCollection.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<VehicleViewModel>> GetVehicle(int id)
             {
-            var vehicle = await _context.Vehicles
-                .FirstOrDefaultAsync(o => o.Id == id);
+            if (id == null) return BadRequest();
+
+            var vehicle = await _vehicleRepository.GetAsync(id);
 
             if (vehicle == null) return NotFound();
             var vehicleViewModel = _mapper.Map<VehicleViewModel>(vehicle);
@@ -81,20 +84,20 @@ namespace CarCollection.Controllers
             {
 
             if (id != updateVehicleViewModel.Id) return BadRequest();
-            var vehicle = await _context.Vehicles.Include(o => o.Comments).FirstOrDefaultAsync(o => o.Id == id);
+
+            var vehicle = await _vehicleRepository.GetAsync(id);
 
             if (vehicle == null) return NotFound();
 
             _mapper.Map(updateVehicleViewModel, vehicle);
-            _context.Entry(vehicle).State = EntityState.Modified;
 
             try
                 {
-                await _context.SaveChangesAsync();
+                await _vehicleRepository.UpdateAsync(vehicle);
                 }
             catch (DbUpdateConcurrencyException)
                 {
-                if (!VehicleExists(id))
+                if (!await _vehicleRepository.Exist(id))
                     {
                     return NotFound();
                     }
@@ -119,8 +122,7 @@ namespace CarCollection.Controllers
 
             var vehicle = _mapper.Map<Vehicle>(createVehicleViewModel);
 
-            _context.Vehicles.Add(vehicle);
-            await _context.SaveChangesAsync();
+            await _vehicleRepository.CreateAsync(vehicle);
 
             return CreatedAtAction("GetVehicle", new { id = vehicle.Id }, createVehicleViewModel);
             }
@@ -134,23 +136,13 @@ namespace CarCollection.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteVehicle(int id)
             {
-            var vehicle = await _context.Vehicles.FindAsync(id);
+            var vehicle = await _vehicleRepository.GetAsync(id);
+
             if (vehicle == null) return NotFound();
 
-            _context.Vehicles.Remove(vehicle);
-            await _context.SaveChangesAsync();
+            await _vehicleRepository.DeleteAsync(vehicle);
 
             return NoContent();
-            }
-
-        /// <summary>
-        /// Check if Vehicle exist else return false
-        /// </summary>
-        /// <param name="id">Id property for Vehicle Id.</param>
-        /// <returns>returns boolean value</returns>
-        private bool VehicleExists(int id)
-            {
-            return _context.Vehicles.Any(e => e.Id == id);
             }
         }
     }
