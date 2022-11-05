@@ -61,7 +61,7 @@ namespace CarCollection.Controllers
         /// <param name="id">Id property for Vehicle Id.</param>
         /// <returns>A single Vehicles object.</returns>
         [HttpGet("{id}")]
-        public async Task<ActionResult<VehicleViewModel>> GetVehicle(int id)
+        public async Task<ActionResult<VehicleViewModel>> GetVehicle(int? id)
             {
             if (id == null) return BadRequest();
 

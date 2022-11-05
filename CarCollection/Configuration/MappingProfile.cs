@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using BugTracker.Data;
 using CarCollection.Data;
+using CarCollection.ViewModels.AppUser;
 using CarCollection.ViewModels.Comment;
 using CarCollection.ViewModels.Vehicle;
 
@@ -24,6 +25,9 @@ namespace CarCollection.Configuration
             CreateMap<Comment, BaseCommentViewModel>().ReverseMap();
             CreateMap<Comment, CreateCommentViewModel>().ReverseMap();
             CreateMap<Comment, UpdateCommentViewModel>().ReverseMap();
+
+            // AppUser Model Mapping
+            CreateMap<AppUser, AppUserViewModel>().ReverseMap();
             }
         }
     }
